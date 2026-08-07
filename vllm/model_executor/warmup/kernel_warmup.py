@@ -14,6 +14,7 @@ import torch
 import vllm.envs as envs
 from vllm.logger import init_logger
 from vllm.model_executor.warmup.b12x_warmup import b12x_warmup
+from vllm.model_executor.layers.fused_moe.b12x_moe import warmup_b12x_moe
 from vllm.model_executor.warmup.cutedsl_warmup import cutedsl_warmup
 from vllm.model_executor.warmup.deep_gemm_warmup import deep_gemm_warmup
 from vllm.model_executor.warmup.deepseek_v4_mhc_warmup import (
@@ -170,6 +171,27 @@ def kernel_warmup(worker: "Worker", *, process_local_only: bool = False):
         deep_gemm_warmup(model, max_tokens)
 
     b12x_warmup(worker, cudagraph_capture_sizes)
+    moe_token_counts = [
+        worker.scheduler_config.max_num_batched_tokens,
+        *cudagraph_capture_sizes,
+        *(
+            size
+            for size in (getattr(compilation_config, "compile_sizes", None) or [])
+            if isinstance(size, int)
+        ),
+    ]
+    max_num_scheduled_tokens = getattr(
+        worker.scheduler_config,
+        "max_num_scheduled_tokens",
+        None,
+    )
+    if max_num_scheduled_tokens is not None:
+        moe_token_counts.append(max_num_scheduled_tokens)
+    warmup_b12x_moe(
+        worker.get_model(),
+        max_tokens=max(moe_token_counts),
+        token_counts=moe_token_counts,
+    )
 
     minimax_m3_msa_warmup(worker)
 
