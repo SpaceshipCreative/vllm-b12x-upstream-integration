@@ -10,7 +10,6 @@ import torch
 
 import vllm.model_executor.layers.fused_moe.modular_kernel as mk
 from vllm.logger import init_logger
-from vllm.model_executor.kernels.b12x_utils import reuse_packed_weight_storage
 from vllm.model_executor.layers.fused_moe.activation import MoEActivation
 from vllm.model_executor.layers.fused_moe.config import (
     FusedMoEParallelConfig,
@@ -28,6 +27,7 @@ from vllm.model_executor.layers.quantization.utils.quant_utils import (
 )
 from vllm.model_executor.utils import replace_parameter
 from vllm.platforms import current_platform
+from vllm.utils.b12x import reuse_packed_weight_storage
 
 logger = init_logger(__name__)
 
